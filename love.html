@@ -1,0 +1,275 @@
+<！DOCTYPE html>
+<html>
+<头>
+	<title></title>
+</head>
+<style>
+  *{
+    填充：0；
+    利润率：0；
+}
+  html，身体{
+  身高：100%；
+  填充：0；
+  利润率：0；
+  背景：#000；
+}
+画布{
+  位置：绝对；
+  宽度：100%；
+  身高：100%；
+}
+.aa{
+  位置：固定；
+  左：50%；
+  底部：10px；
+  颜色：#ccc
+}
+</style>
+<身体>
+    <canvas id="pinkboard"></canvas>
+ 
+    <script>
+       
+/*
+*设置
+*/
+var设置={
+  粒子：{
+    长度：500，//最大颗粒量
+    持续时间：2，//粒子持续时间（秒为单位）
+    速度：100，//粒子速度（以像素/秒为单位）
+    效果：-0.75，//玩这个以获得不错的效果
+    尺寸：30，//粒子大小（以像素为单位）
+  }，
+};
+ 
+/*
+*Erik M的RequestAnimationFrame polyfill？勒
+*/
+(function(){var b=0;var c=["ms","moz","webkit","o"];for(var a=0;a<c.length&&!window.requestAnimationFrame;++a){window.requestAnimationFrame=window[c[a]+"RequestAnimationFrame"];window.cancelAnimationFrame=window[c[a]+"CancelAnimationFrame"]|window[c[a]+"CancelRequestAnimationFrame"]}if(!window.requestAnimationFrame){window.requestAnimationFrame=function(h,e){var d=new Date().getTime();var f=Math.max(0,16-(d-b));var g=window.setTimeout(function(){h(d+f)},f);b=d+f;return g}}if(!window.cancelAnimationFrame){window.cancelAnimationFrame=function(d){clearTimeout(d)}}}());
+ 
+/*
+*积分类
+*/
+var Point = (function() {
+  函数点（x，y）{
+    this.x =（x类型！== 'undefined') ?x：0；
+    this.y =（y类型！== 'undefined') ?y：0；
+  }
+  Point.prototype.clone = function() {
+    返回新点（this.x，this.y）；
+  };
+  Point.prototype.length = function(length) {
+    如果（长度类型== '未定义'）
+      返回Math.sqrt(this.x * this.x + this.y * this.y);
+    this.normalize();
+    this.x *=长度；
+    this.y *=长度；
+    归还这个；
+  };
+  Point.prototype.normalize = function() {
+    var length = this.length();
+    this.x /=长度；
+    this.y /=长度；
+    归还这个；
+  };
+  返回点；
+}）；
+ 
+/*
+*粒子类
+*/
+var Particle = (function() {
+  函数 Particle() {
+    this.position = new Point();
+    this.velocity = new Point();
+    this.acceleration = new Point();
+    this.age = 0;
+  }
+  Particle.prototype.initialize = function(x, y, dx, dy) {
+    this.position.x = x;
+    this.position.y = y;
+    this.velocity.x = dx;
+    this.velocity.y = dy;
+    this.acceleration.x = dx * settings.particles.effect;
+    this.acceleration.y = dy * settings.particles.effect;
+    this.age = 0;
+  };
+  Particle.prototype.update = function(deltaTime) {
+    this.position.x += this.velocity.x * deltaTime;
+    this.position.y += this.velocity.y * deltaTime;
+    this.velocity.x += this.acceleration.x * deltaTime;
+    this.velocity.y += this.acceleration.y * deltaTime;
+    this.age += deltaTime;
+  };
+  Particle.prototype.draw = function(context, image) {
+    功能轻松（t）{
+      返回（--t）* t * t + 1；
+    }
+    var size = image.width * ease(this.age / settings.particles.duration);
+    context.globalAlpha = 1 - this.age / settings.particles.duration;
+    context.drawImage(image, this.position.x - size / 2, this.position.y - size / 2, size, size);
+  };
+  返回粒子；
+}）；
+ 
+/*
+* ParticlePool类
+*/
+var ParticlePool = (function() {
+  var粒子，
+      firstActive = 0，
+      firstFree = 0，
+      duration = settings.particles.duration;
+  
+  函数 ParticlePool(length) {
+    // 创建和填充粒子池
+    粒子=新数组（长度）；
+    对于（var i = 0; i < particles.length; i++）
+      粒子[i] = 新粒子();
+  }
+  ParticlePool.prototype.add = function(x, y, dx, dy) {
+    粒子[firstFree].initialize(x, y, dx, dy);
+    
+    // 处理循环队列
+    firstFree++；
+    if (firstFree == particles.length) firstFree = 0;
+    if (firstActive == firstFree ) firstActive++;
+    if (firstActive == particles.length) firstActive = 0;
+  };
+  ParticlePool.prototype.update = function(deltaTime) {
+    var i；
+    
+    // 更新活动粒子
+    if (firstActive < firstFree) {
+      对于（i = firstActive; i < firstFree; i++）
+        粒子[i].update(deltaTime);
+    }
+    if (firstFree < firstActive) {
+      对于（i = firstActive; i < particles.length; i++）
+        粒子[i].update(deltaTime);
+      对于（i = 0; i < firstFree; i++）
+        粒子[i].update(deltaTime);
+    }
+    
+    // 去除不活跃的粒子
+    while (particles[firstActive].age >= duration && firstActive != firstFree) {
+      firstActive++;
+      if (firstActive == particles.length) firstActive = 0;
+    }
+    
+    
+  };
+  ParticlePool.prototype.draw = function(context, image) {
+    // 绘制活性粒子
+    if (firstActive < firstFree) {
+      对于（i = firstActive; i < firstFree; i++）
+        粒子[i].draw(context, image);
+    }
+    if (firstFree < firstActive) {
+      对于（i = firstActive; i < particles.length; i++）
+        粒子[i].draw(context, image);
+      对于（i = 0; i < firstFree; i++）
+        粒子[i].draw(context, image);
+    }
+  };
+  返回ParticlePool；
+}）；
+ 
+/*
+*把这一切放在一起
+*/
+（功能（画布）{
+  var context = canvas.getContext('2d'),
+      粒子=新粒子池（settings.particles.length），
+      particleRate = settings.particles.length / settings.particles.duration, // particles/sec
+      时间；
+  
+  // 用-PI <= t <= PI 点心
+  功能点OnHeart(t) {
+    返回新点（
+      160 * Math.pow（Math.sin（t），3），
+      130 * Math.cos(t) - 50 * Math.cos(2 * t) - 20 * Math.cos(3 * t) - 10 * Math.cos(4 * t) + 25
+    ）；
+  }
+  
+  // 使用虚拟画布创建粒子图像
+  var image = (function() {
+    var canvas = document.createElement('canvas'),
+        context = canvas.getContext('2d');
+    canvas.width = settings.particles.size;
+    canvas.height = settings.particles.size;
+    // 创建路径的帮助函数
+    函数到(t){
+      var point = pointOnHeart(t);
+      point.x = settings.particles.size / 2 + point.x * settings.particles.size / 350;
+      point.y = settings.particles.size / 2 - point.y * settings.particles.size / 350;
+      返回点；
+    }
+    // 创建路径
+    context.beginPath();
+    var t = -Math.PI;
+    var point = to(t);
+    context.moveTo(point.x, point.y);
+    while (t < Math.PI) {
+      t += 0.01; // 婴儿步骤！
+      点 = to(t);
+      context.lineTo(point.x, point.y);
+    }
+    context.closePath();
+    // 创建填充
+    context.fillStyle = '#ea80b0';
+    context.fill();
+    // 创建图像
+    var image = new Image();
+    image.src = canvas.toDataURL();
+    返回图像；
+  }）；
+  
+  // 渲染那个东西！
+  函数渲染() {
+    // 下一个动画帧
+    requestAnimationFrame（渲染）；
+    
+    // 更新时间
+    var newTime = new Date().getTime() / 1000，
+        deltaTime = newTime - (time || newTime);
+    时间=新时间；
+    
+    // 清晰的画布
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 创建新粒子
+    var amount = particleRate * deltaTime；
+    for (var i = 0; i < amount; i++) {
+      var pos = pointOnHeart(Math.PI - 2 * Math.PI * Math.random());
+      var dir = pos.clone().length(settings.particles.velocity);
+      particles.add(canvas.width / 2 + pos.x, canvas.height / 2 - pos.y, dir.x, -dir.y);
+    }
+    
+    // 更新和绘制粒子
+    particles.update（deltaTime）；
+    particles.draw（上下文，图像）；
+  }
+  
+  // 处理（重新）画布的大小
+  function onResize() {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+  }
+  window.onresize = onResize；
+  
+  //延迟渲染引导
+  setTimeout(function() {
+    onResize（）；
+    渲染（）；
+  }，10）；
+}）（document.getElementById（“pinkboard”））；
+ 
+ 
+ 
+ 
+    </script>
+</身体>
+</html>
